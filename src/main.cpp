@@ -1,41 +1,63 @@
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
+#define ScoutPassword "Dakommsteniedrauf"
+
+bool checkWLAN();
 
 void setup() {
-    // WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
-    // it is a good practice to make sure your code sets wifi mode how you want it.
+    // WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP, which we need
 
-    // put your setup code here, to run once:
-    Serial.begin(115200);
+    Serial.begin(115200); //Configures the serial connection over usb with the baudrate
     
-    //WiFiManager, Local intialization. Once its business is done, there is no need to keep it around
     WiFiManager wm;
 
     // reset settings - wipe stored credentials for testing
-    // these are stored by the esp library
-    // wm.resetSettings();
+    wm.resetSettings(); //Comment this when not debuging
 
-    // Automatically connect using saved credentials,
-    // if connection fails, it starts an access point with the specified name ( "AutoConnectAP"),
-    // if empty will auto generate SSID, if password is blank it will be anonymous AP (wm.autoConnect())
-    // then goes into a blocking loop awaiting configuration and will return success result
-
-    bool res;
-    // res = wm.autoConnect(); // auto generated AP name from chipid
-    // res = wm.autoConnect("AutoConnectAP"); // anonymous ap
-    res = wm.autoConnect("ESP32-C3-Scout"); // password protected ap
+    /** Automatically connect using saved credentials,
+    * if connection fails, it starts an access point with the specified name,
+    * then goes into a blocking loop awaiting configuration and will return success result
+    */
+    bool res = wm.autoConnect("ESP32 Configuration Scout", ScoutPassword);//The second string is the password
 
     if(!res) {
-        Serial.println("Failed to connect");
-        // ESP.restart();
+        Serial.println("[Setup]: Failed to connect, restaring the ESP.");
+        ESP.restart();
     } 
-    else {
-        //if you get here you have connected to the WiFi    
-        Serial.println("connected...yeey :)");
+    else {   
+        Serial.println("[Setup]: Connected successfully.");
     }
-
 }
 
 void loop() {
-    // put your main code here, to run repeatedly:   
+    if(checkWLAN) {
+        Serial.println("WLAN: Connected");
+    } else {
+        Serial.println("WLAN: Not connected");
+    }
+    vTaskDelay(5000);
+}
+
+// Checks if the ESP is still connected to it's WLAN, if not, it trys to reconnect with the old credentials.
+// If this doesn't work, it restarts the Scout for a limited time:
+#define ConfigPortalTimeOut 100 //in Seconds
+
+bool checkWLAN() {
+    Serial.println("[CheckWLAN]: Checking if the chip is still connected to the WLAN.");
+    if(WiFi.status() != WL_CONNECTED) {
+        Serial.println("[CheckWLAN]: Not connected, trying old credentials. If they fail, starting scout");
+        WiFiManager wm;
+        wm.setTimeout(100);
+        bool res = wm.autoConnect("ESP32 Reconfiguration Scout", ScoutPassword);
+
+        if(!res) {
+            Serial.println("[CheckWLAN]: Failed to connect");
+            return true;
+        } 
+        else { 
+            Serial.println("[CheckWLAN]: Connected successfully.");
+            return false;
+        }
+    }
+    return true;
 }
